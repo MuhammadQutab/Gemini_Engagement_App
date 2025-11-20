@@ -2,7 +2,7 @@ import streamlit as st
 import pickle
 import pandas as pd
 import os
-from google import genai
+import google.generativeai as genai
 
 # ================================
 # 🔧 Load RandomForest ML Model
