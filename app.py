@@ -24,7 +24,7 @@ except Exception as e:
 # 🔧 Setup Gemini API
 # ================================
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")  # From Streamlit Secrets
+GEMINI_API_KEY = os.getenv("AIzaSyA-bCeOS60U6VsufGcHGwMLlOg2MjJ-o_Y")  # From Streamlit Secrets
 
 if not GEMINI_API_KEY:
     st.error("❌ GEMINI_API_KEY is missing. Add it in Streamlit → Settings → Secrets.")
