@@ -4,11 +4,10 @@ import pandas as pd
 import os
 import google.generativeai as genai
 
-# ================================
-# 🔧 Load RandomForest ML Model
-# ================================
 
-# Automatically detect correct path on Streamlit Cloud
+# ============================================
+# 🔧 Load ML Model (RandomForest)
+# ============================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "ads_predictor.pkl")
 
@@ -16,93 +15,74 @@ try:
     with open(MODEL_PATH, "rb") as f:
         model = pickle.load(f)
 except Exception as e:
-    st.error(f"❌ Could not load ML model: {e}")
+    st.error("❌ Failed to load ML model. Make sure 'ads_predictor.pkl' is inside the repo.")
     st.stop()
 
 
-# ================================
-# 🔧 Setup Gemini API
-# ================================
-
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")  # From Streamlit Secrets
+# ============================================
+# 🔐 Load Gemini API Key (from Streamlit Secrets)
+# ============================================
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
-    st.error("❌ GEMINI_API_KEY is missing. Add it in Streamlit → Settings → Secrets.")
+    st.error("❌ GEMINI_API_KEY missing. Add it in Streamlit → Settings → Secrets.")
     st.stop()
 
-client = genai.Client(api_key=GEMINI_API_KEY)
-gemini_model = client
+genai.configure(api_key=GEMINI_API_KEY)
+gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
-# Gemini helper function
-def get_gemini_suggestions(caption, engagement_score):
-    prompt = f"""
-    I have a social media post:
 
-    Caption: {caption}
-    Predicted Engagement Score: {engagement_score}
+# ============================================
+# 🎨 Streamlit UI Setup
+# ============================================
+st.set_page_config(page_title="Ad Engagement Predictor + Gemini Chat", page_icon="🤖")
+st.title("🤖 Ad Engagement Predictor + Gemini AI Assistant")
 
-    Provide:
-    1. Explanation of the score
-    2. Suggestions to improve engagement
-    3. An improved caption
-    4. 5 relevant hashtags
-    """
 
+# ============================================
+# 🧮 User Inputs for ML Model
+# ============================================
+st.subheader("📊 Enter Values for Engagement Prediction")
+
+# Example inputs (you must change according to your dataset!)
+col1, col2 = st.columns(2)
+
+impressions = col1.number_input("Impressions", min_value=0, value=1000)
+clicks = col2.number_input("Clicks", min_value=0, value=50)
+
+spend = col1.number_input("Ad Spend ($)", min_value=0.0, value=10.0)
+reach = col2.number_input("Reach", min_value=0, value=500)
+
+
+# Predict Button
+if st.button("🔮 Predict Engagement"):
     try:
-        response = gemini_model.models.generate_content(
-            model="gemini-pro-latest",
-            contents=prompt
-        )
-        return response.text
+        input_df = pd.DataFrame({
+            "impressions": [impressions],
+            "clicks": [clicks],
+            "spend": [spend],
+            "reach": [reach]
+        })
+
+        prediction = model.predict(input_df)[0]
+        st.success(f"📈 Predicted Engagement Score: **{prediction}**")
+
     except Exception as e:
-        return f"❌ Gemini API Error: {e}"
+        st.error(f"❌ Prediction failed: {e}")
 
 
-# ================================
-# 🔥 Streamlit UI
-# ================================
+# ============================================
+# 💬 Gemini Chat Section
+# ============================================
+st.subheader("🤖 Ask Gemini Anything")
 
-st.title("📈 Social Media Engagement Predictor + Gemini AI Assistant")
-st.write("Predict engagement and improve your captions using ML + Gemini AI.")
+user_prompt = st.text_input("Type your question for Gemini:")
 
-caption = st.text_area("✍️ Enter your caption:")
-account_name = st.text_input("Account Name:", "Google")
-platform = st.selectbox("Platform:", ["Instagram", "Facebook", "Twitter"])
-comment_count = st.number_input("Comment Count:", min_value=0, value=10)
-like_count = st.number_input("Like Count:", min_value=0, value=100)
-sentiment_score = st.slider("Sentiment Score:", 0.0, 1.0, 0.5)
-
-if st.button("🚀 Predict Engagement + Get AI Recommendations"):
-
-    if not caption.strip():
-        st.warning("Please enter a caption first.")
-        st.stop()
-
-    # Prepare DataFrame for ML model
-    new_data = pd.DataFrame([{
-        "caption": caption,
-        "account_name": account_name,
-        "platform": platform,
-        "comment_count": comment_count,
-        "like_count": like_count,
-        "caption_length": len(caption),
-        "word_count": len(caption.split()),
-        "sentiment_score": sentiment_score
-    }])
-
-    # ML prediction
+if user_prompt:
     try:
-        engagement_score = model.predict(new_data)[0]
+        response = gemini_model.generate_content(user_prompt)
+        st.write("### Gemini’s Answer:")
+        st.write(response.text)
+
     except Exception as e:
-        st.error(f"❌ Prediction Error: {e}")
-        st.stop()
-
-    st.subheader("📊 Predicted Engagement Score")
-    st.success(f"**{engagement_score:.2f}**")
-
-    # Gemini AI analysis
-    st.subheader("🤖 Gemini AI Suggestions")
-
-    analysis = get_gemini_suggestions(caption, engagement_score)
-
-    st.write(analysis)
+        st.error(f"❌ Gemini generation failed: {e}")
