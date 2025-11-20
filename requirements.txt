@@ -2,6 +2,4 @@ streamlit
 pandas
 numpy
 scikit-learn==1.6.1
-google-geneai
-google
-google.generativeai
+google-generativeai
