@@ -5,84 +5,103 @@ import os
 import google.generativeai as genai
 
 
-# ============================================
-# 🔧 Load ML Model (RandomForest)
-# ============================================
+# ================================
+# 🔧 Load RandomForest ML Model
+# ================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "ads_predictor.pkl")
 
-try:
-    with open(MODEL_PATH, "rb") as f:
-        model = pickle.load(f)
-except Exception as e:
-    st.error("❌ Failed to load ML model. Make sure 'ads_predictor.pkl' is inside the repo.")
-    st.stop()
+with open(MODEL_PATH, "rb") as f:
+    model = pickle.load(f)
 
 
-# ============================================
-# 🔐 Load Gemini API Key (from Streamlit Secrets)
-# ============================================
+# ================================
+# 🔐 Setup Gemini API
+# ================================
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
-    st.error("❌ GEMINI_API_KEY missing. Add it in Streamlit → Settings → Secrets.")
+    st.error("❌ GEMINI_API_KEY is missing. Add it in Streamlit → Settings → Secrets.")
     st.stop()
 
 genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.GenerativeModel("gemini-pro-latest")
 
 
-# ============================================
-# 🎨 Streamlit UI Setup
-# ============================================
-st.set_page_config(page_title="Ad Engagement Predictor + Gemini Chat", page_icon="🤖")
-st.title("🤖 Ad Engagement Predictor + Gemini AI Assistant")
+# ================================
+# 🎨 Streamlit UI
+# ================================
+st.set_page_config(page_title="Social Media Engagement Predictor", layout="wide")
+
+st.title("📊 Social Media Engagement Predictor")
 
 
-# ============================================
-# 🧮 User Inputs for ML Model
-# ============================================
-st.subheader("📊 Enter Values for Engagement Prediction")
+# ================================
+# 🧩 Feature Inputs (Original Model)
+# ================================
+st.subheader("📝 Enter Post Details")
 
-# Example inputs (you must change according to your dataset!)
 col1, col2 = st.columns(2)
 
-impressions = col1.number_input("Impressions", min_value=0, value=1000)
-clicks = col2.number_input("Clicks", min_value=0, value=50)
+with col1:
+    account_name = st.text_input("Account Name:")
+    caption = st.text_area("Caption Text:")
 
-spend = col1.number_input("Ad Spend ($)", min_value=0.0, value=10.0)
-reach = col2.number_input("Reach", min_value=0, value=500)
+    platform = st.selectbox(
+        "Platform:",
+        ["Instagram", "Facebook", "YouTube", "TikTok", "Twitter (X)"]
+    )
+
+with col2:
+    caption_length = st.number_input("Caption Length (characters):", min_value=0)
+    word_count = st.number_input("Word Count:", min_value=0)
+    sentiment_score = st.number_input("Sentiment Score (-1 to 1):", min_value=-1.0, max_value=1.0, step=0.01)
+    like_count = st.number_input("Like Count:", min_value=0)
+    comment_count = st.number_input("Comment Count:", min_value=0)
 
 
-# Predict Button
-if st.button("🔮 Predict Engagement"):
+# ================================
+# 📌 Prepare DataFrame for Model
+# ================================
+def prepare_input():
+    return pd.DataFrame([{
+        "account_name": account_name,
+        "caption": caption,
+        "caption_length": caption_length,
+        "word_count": word_count,
+        "sentiment_score": sentiment_score,
+        "like_count": like_count,
+        "comment_count": comment_count,
+        "platform": platform
+    }])
+
+
+# ================================
+# 🔮 Prediction
+# ================================
+if st.button("Predict Engagement", type="primary"):
+    df = prepare_input()
+
     try:
-        input_df = pd.DataFrame({
-            "impressions": [impressions],
-            "clicks": [clicks],
-            "spend": [spend],
-            "reach": [reach]
-        })
-
-        prediction = model.predict(input_df)[0]
-        st.success(f"📈 Predicted Engagement Score: **{prediction}**")
+        prediction = model.predict(df)[0]
+        st.success(f"✅ **Predicted Engagement Score:** {prediction}")
 
     except Exception as e:
         st.error(f"❌ Prediction failed: {e}")
 
 
-# ============================================
-# 💬 Gemini Chat Section
-# ============================================
-st.subheader("🤖 Ask Gemini Anything")
+# ================================
+# 🤖 Gemini AI Section
+# ================================
+st.markdown("---")
+st.header("💬 Ask Gemini Anything")
 
-user_prompt = st.text_input("Type your question for Gemini:")
+user_prompt = st.text_area("Type your question for Gemini:")
 
-if user_prompt:
-    try:
-        response = gemini_model.generate_content(user_prompt)
-        st.write("### Gemini’s Answer:")
-        st.write(response.text)
-
-    except Exception as e:
-        st.error(f"❌ Gemini generation failed: {e}")
+if st.button("Ask Gemini"):
+    if user_prompt.strip():
+        with st.spinner("Thinking..."):
+            response = client.generate_content(user_prompt)
+            st.write(response.text)
+    else:
+        st.warning("Please enter a question before submitting.")
