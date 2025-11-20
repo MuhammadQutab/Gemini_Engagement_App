@@ -1,2 +1,15 @@
+# Ignore Streamlit secrets
 .streamlit/secrets.toml
-*.pkl
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore virtual env
+.venv/
+venv/
+env/
+
+# Ignore OS junk
+.DS_Store
+Thumbs.db
